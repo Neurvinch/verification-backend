@@ -130,8 +130,9 @@ class RedisService:
             
             if document_type == "pan":
                 return {
+                    "@entity": "in.co.sandbox.kyc.pan_verification.request",
                     "pan": final_data.get('pan'),
-                    "name_as_per_pan": final_data.get('name'),
+                    "name_as_per_pan": final_data.get('name'),  # Use correct API field name
                     "date_of_birth": final_data.get('date_of_birth'),
                     "consent": "Y",
                     "reason": "For onboarding customers"
@@ -164,7 +165,9 @@ class RedisService:
                 "user_wallet": user_wallet,
                 "did_id": str(did_id),
                 "verification_type": document_type,
-                "document_data": document_data,
+                "document_data": json.dumps(document_data),  # Serialize to JSON string for Rust
+                "extracted_data": json.dumps(extracted_data) if extracted_data else "{}",  # Empty JSON instead of None
+                "user_corrections": json.dumps(user_corrections) if user_corrections else "{}",  # Empty JSON instead of None
                 "timestamp": datetime.now().isoformat(),
                 "status": "pending_verification"  # NOT "verified"
             }
