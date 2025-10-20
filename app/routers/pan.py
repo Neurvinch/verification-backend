@@ -248,3 +248,54 @@ async def correct_pan_data(
             status_code=500,
             detail=f"Error saving corrected PAN data: {str(e)}"
         )
+
+@router.post("/verify-pan", response_model=APIResponse)
+async def verify_pan(
+    verification_data: dict,
+    user_service: UserService = Depends(get_user_service)
+):
+    """Send PAN verification request to Redis stream for enclave processing"""
+    try:
+        logger.info(f"Received PAN verification request for user: {verification_data.get('user_address')}")
+        
+        # Import redis service
+        from app.services.redis_service import get_redis_service
+        redis_service = get_redis_service()
+        
+        # Prepare verification payload for enclave
+        verification_payload = {
+            "user_address": verification_data.get("user_address"),
+            "document_type": "pan",
+            "did_type": verification_data.get("did_type", 0),
+            "pan_data": verification_data.get("pan_data", {}),
+            "timestamp": verification_data.get("timestamp", str(uuid.uuid4()))
+        }
+        
+        logger.info(f"📤 Sending PAN verification to Redis stream: {verification_payload}")
+        
+        # Send to Redis stream for enclave processing
+        stream_result = await redis_service.send_verification_request(verification_payload)
+        
+        if stream_result:
+            logger.info(f"✅ PAN verification request sent to enclave successfully")
+            return APIResponse(
+                success=True,
+                message="PAN verification request sent to enclave for processing",
+                data={
+                    "verification_id": verification_payload["timestamp"],
+                    "status": "processing",
+                    "user_address": verification_data.get("user_address")
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to send verification request to enclave"
+            )
+        
+    except Exception as e:
+        logger.error(f"Error in PAN verification: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing PAN verification: {str(e)}"
+        )
