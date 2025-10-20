@@ -262,19 +262,31 @@ async def verify_pan(
         from app.services.redis_service import get_redis_service
         redis_service = get_redis_service()
         
-        # Prepare verification payload for enclave
+        # Extract PAN data from request
+        pan_data = verification_data.get("pan_data", {})
+        user_address = verification_data.get("user_address")
+        did_type = verification_data.get("did_type", 0)
+        
+        # Prepare verification data in the format expected by Redis service
         verification_payload = {
-            "user_address": verification_data.get("user_address"),
-            "document_type": "pan",
-            "did_type": verification_data.get("did_type", 0),
-            "pan_data": verification_data.get("pan_data", {}),
-            "timestamp": verification_data.get("timestamp", str(uuid.uuid4()))
+            'pan': pan_data.get('pan_number'),
+            'name': pan_data.get('name'),
+            'father_name': pan_data.get('father_name'),
+            'date_of_birth': pan_data.get('dob')
         }
         
-        logger.info(f"📤 Sending PAN verification to Redis stream: {verification_payload}")
+        logger.info(f"📤 Sending PAN verification to Redis stream for user: {user_address}")
+        logger.info(f"📋 PAN data: {verification_payload}")
         
-        # Send to Redis stream for enclave processing
-        stream_result = await redis_service.send_verification_request(verification_payload)
+        # Send to Redis stream for enclave processing using correct method signature
+        stream_result = await redis_service.send_verification_request(
+            user_wallet=user_address,
+            did_id=did_type,
+            document_type="pan",
+            verification_data=verification_payload,
+            extracted_data=verification_payload,
+            user_corrections={}  # No corrections for direct verification
+        )
         
         if stream_result:
             logger.info(f"✅ PAN verification request sent to enclave successfully")
@@ -282,9 +294,10 @@ async def verify_pan(
                 success=True,
                 message="PAN verification request sent to enclave for processing",
                 data={
-                    "verification_id": verification_payload["timestamp"],
+                    "verification_id": str(uuid.uuid4()),
                     "status": "processing",
-                    "user_address": verification_data.get("user_address")
+                    "user_address": user_address,
+                    "pan_number": pan_data.get('pan_number')
                 }
             )
         else:
