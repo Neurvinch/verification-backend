@@ -714,6 +714,35 @@ class PANOCRService:
             logger.error(f"Error extracting photo: {str(e)}")
             return None
     
+    def get_pan_photo(self, image_bytes: bytes) -> Dict:
+        """
+        Extract only the photo from PAN card for face verification use
+        Returns dict with photo_base64 and success status
+        """
+        try:
+            photo_base64 = self.extract_photo_from_pan(image_bytes)
+            
+            if photo_base64:
+                return {
+                    'success': True,
+                    'pan_photo_base64': photo_base64,
+                    'message': 'PAN card photo extracted successfully'
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Failed to extract photo from PAN card',
+                    'message': 'Could not locate or extract photo region'
+                }
+                
+        except Exception as e:
+            logger.error(f"Error in get_pan_photo: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'message': f'Error extracting PAN photo: {str(e)}'
+            }
+    
     def extract_pan_data(self, image_bytes: bytes, use_ensemble: bool = False) -> Dict:
         """Extract all relevant data from PAN card image.
         
