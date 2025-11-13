@@ -243,15 +243,34 @@ async def verify_pan_face_with_yolo(
         face_distance = comparison_result.get('face_distance', 0)
         detection_method = comparison_result.get('detection_method', 'YOLO+face_recognition')
         
-        logger.info(f"✅ Face verification complete: Match={is_match}, Confidence={confidence:.1f}%, Distance={face_distance:.3f}")
+        # Determine verification status based on confidence thresholds
+        # Threshold: >= 60% confidence for acceptance
+        verification_threshold = 60.0
+        
+        if is_match and confidence >= verification_threshold:
+            verification_status = "SUCCESS"
+            verification_message = f"✅ Verification Success: Face match confirmed with {confidence:.1f}% confidence"
+            is_verified = True
+        else:
+            verification_status = "FAILED"
+            if is_match and confidence < verification_threshold:
+                verification_message = f"❌ Verification Failed: Low confidence match ({confidence:.1f}%) - threshold is {verification_threshold}%"
+            else:
+                verification_message = f"❌ Verification Failed: Face mismatch detected (confidence: {confidence:.1f}%)"
+            is_verified = False
+        
+        logger.info(f"{'✅' if is_verified else '❌'} Face verification {verification_status}: Match={is_match}, Confidence={confidence:.1f}%, Distance={face_distance:.3f}")
         
         # Prepare and sanitize detailed result
         result_data = {
+            'verification_status': verification_status,  # SUCCESS or FAILED
+            'verified': bool(is_verified),
             'match': bool(is_match),
             'confidence': float(round(float(confidence), 1)),
             'face_distance': float(round(float(face_distance), 3)),
+            'threshold': verification_threshold,
             'detection_method': detection_method,
-            'message': comparison_result.get('message'),
+            'message': verification_message,
             'pan_photo_extracted': True,
             'validation': {
                 'pan_photo': pan_validation,
@@ -264,7 +283,7 @@ async def verify_pan_face_with_yolo(
         # Return detailed result
         return APIResponse(
             success=True,
-            message=comparison_result.get('message', ''),
+            message=verification_message,
             data=sanitized
         )
         
