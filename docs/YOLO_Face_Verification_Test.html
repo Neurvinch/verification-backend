@@ -581,40 +581,37 @@
             const resultSection = document.getElementById('resultSection');
             const resultData = data.data;
 
-            // Determine result type
-            const isMatch = resultData.match;
+            // Use verification_status from API (SUCCESS or FAILED)
+            const verificationStatus = resultData.verification_status || 'UNKNOWN';
+            const isVerified = resultData.verified || false;
             const confidence = resultData.confidence;
+            
+            // Determine UI styling based on verification status
             let resultClass = 'failure';
             let icon = '❌';
-            let title = 'No Match';
+            let title = 'Verification Failed';
 
-            if (isMatch) {
-                if (confidence >= 80) {
-                    resultClass = 'success';
-                    icon = '✅';
-                    title = 'High Confidence Match!';
-                } else if (confidence >= 60) {
-                    resultClass = 'warning';
-                    icon = '⚠️';
-                    title = 'Moderate Match';
-                } else {
-                    resultClass = 'warning';
-                    icon = '⚠️';
-                    title = 'Low Confidence Match';
-                }
+            if (verificationStatus === 'SUCCESS' && isVerified) {
+                resultClass = 'success';
+                icon = '✅';
+                title = 'Verification Success';
+            } else {
+                resultClass = 'failure';
+                icon = '❌';
+                title = 'Verification Failed';
             }
 
             // Set result class
             resultSection.className = 'result-section active ' + resultClass;
             document.getElementById('resultIcon').textContent = icon;
             document.getElementById('resultTitle').textContent = title;
-            document.getElementById('resultMessage').textContent = resultData.message;
+            document.getElementById('resultMessage').textContent = data.message || resultData.message;
 
             // Display details
             const detailsHTML = `
                 <div class="detail-card">
-                    <h4>Match Status</h4>
-                    <p>${isMatch ? '✅ Yes' : '❌ No'}</p>
+                    <h4>Verification Status</h4>
+                    <p style="font-weight: bold;">${verificationStatus}</p>
                 </div>
                 <div class="detail-card">
                     <h4>Confidence</h4>
@@ -625,8 +622,8 @@
                     <p>${resultData.face_distance}</p>
                 </div>
                 <div class="detail-card">
-                    <h4>Detection Method</h4>
-                    <p>${resultData.detection_method}</p>
+                    <h4>Threshold</h4>
+                    <p>${resultData.threshold}%</p>
                 </div>
             `;
             document.getElementById('resultDetails').innerHTML = detailsHTML;
