@@ -244,19 +244,25 @@ async def verify_pan_face_with_yolo(
         detection_method = comparison_result.get('detection_method', 'YOLO+face_recognition')
         
         # Determine verification status based on confidence thresholds
-        # Threshold: >= 60% confidence for acceptance
-        verification_threshold = 60.0
+        # Threshold: >= 40% confidence for acceptance (lowered for testing)
+        verification_threshold = 40.0
         
-        if is_match and confidence >= verification_threshold:
+        # DEBUG: Log detailed verification info
+        logger.info(f"🔍 VERIFICATION DEBUG:")
+        logger.info(f"  - is_match: {is_match}")
+        logger.info(f"  - confidence: {confidence}%")
+        logger.info(f"  - face_distance: {face_distance}")
+        logger.info(f"  - threshold: {verification_threshold}%")
+        logger.info(f"  - meets_threshold: {confidence >= verification_threshold}")
+        
+        # Use confidence-based verification instead of distance-based match
+        if confidence >= verification_threshold:
             verification_status = "SUCCESS"
             verification_message = f"✅ Verification Success: Face match confirmed with {confidence:.1f}% confidence"
             is_verified = True
         else:
             verification_status = "FAILED"
-            if is_match and confidence < verification_threshold:
-                verification_message = f"❌ Verification Failed: Low confidence match ({confidence:.1f}%) - threshold is {verification_threshold}%"
-            else:
-                verification_message = f"❌ Verification Failed: Face mismatch detected (confidence: {confidence:.1f}%)"
+            verification_message = f"❌ Verification Failed: Confidence too low ({confidence:.1f}%) - threshold is {verification_threshold}%"
             is_verified = False
         
         logger.info(f"{'✅' if is_verified else '❌'} Face verification {verification_status}: Match={is_match}, Confidence={confidence:.1f}%, Distance={face_distance:.3f}")

@@ -580,55 +580,91 @@ class PANOCRService:
         return name
     
     def extract_father_name(self, text: str) -> Optional[str]:
-        """Extract father's name - generic approach"""
+        """Extract father's name - improved to avoid picking up the person's full name"""
         lines = text.split('\n')
         cleaned_lines = [line.strip() for line in lines if line.strip()]
         
         candidates = []
+        person_name = self.extract_name(text)  # Get the person's name to avoid confusion
         
         # Strategy 1: Look for "Father" label and collect candidates from same/nearby lines
         for i, line in enumerate(cleaned_lines):
-            if re.search(r"Father'?s?\s*Name|FN\b", line, re.IGNORECASE):
+            if re.search(r"Father'?s?\s*Name|FN\b|पिता\s*का\s*नाम", line, re.IGNORECASE):
                 # Try to extract from same line first (after the label)
-                # e.g., "Father's Name: JOHN DOE"
-                match = re.search(r"Father'?s?\s*Name[:\s]+([A-Z][A-Z\s]+?)(?:\s+\d|\s*$)", line, re.IGNORECASE)
+                # e.g., "Father's Name: JOHN DOE" or "पिता का नाम / Father's Name BALAGURU"
+                match = re.search(r"(?:Father'?s?\s*Name|FN|पिता\s*का\s*नाम)[:\s/]+([A-Z][A-Z\s]+?)(?:\s+\d|\s*$)", line, re.IGNORECASE)
                 if match:
                     name_part = match.group(1).strip()
                     name_clean = re.sub(r'[^A-Z\s]', '', name_part).strip()
-                    if name_clean and len(name_clean) >= 5:
+                    if name_clean and len(name_clean) >= 3:  # Reduced minimum length for single names
                         cleaned_name = self._clean_name(name_clean)
-                        if self._is_valid_name(cleaned_name):
+                        # Avoid picking up the person's full name
+                        if (self._is_valid_name(cleaned_name, allow_single_word=True) and 
+                            cleaned_name != person_name):
                             candidates.append((cleaned_name, 'same_line', 0))
                 
                 # Collect candidates from next few lines
-                for j in range(1, min(4, len(cleaned_lines) - i)):
+                for j in range(1, min(3, len(cleaned_lines) - i)):  # Reduced range to be more precise
                     next_line = cleaned_lines[i + j]
                     next_line_clean = re.sub(r'[^A-Z\s]', '', next_line.upper()).strip()
                     
                     # Stop if we hit another label
-                    if re.search(r'(Date|Birth|Signature|Address)', next_line, re.IGNORECASE):
+                    if re.search(r'(Date|Birth|Signature|Address|जन्म)', next_line, re.IGNORECASE):
                         break
                     
-                    if next_line_clean and len(next_line_clean) >= 5:
+                    if next_line_clean and len(next_line_clean) >= 3:  # Reduced minimum length
                         cleaned_name = self._clean_name(next_line_clean)
                         # Allow single-word names for father's name (common in India)
-                        if self._is_valid_name(cleaned_name, allow_single_word=True):
-                            candidates.append((cleaned_name, 'label', j))
+                        # Avoid picking up the person's full name
+                        if (self._is_valid_name(cleaned_name, allow_single_word=True) and 
+                            cleaned_name != person_name):
+                            
+                            # Special handling: if person's name is "ASHWIN BALAGURU" and we find "BALAGURU",
+                            # prefer the single word (likely the father's name)
+                            if person_name and len(cleaned_name.split()) == 1:
+                                person_words = person_name.split()
+                                if len(person_words) > 1 and cleaned_name in person_words:
+                                    # This single word is part of the person's name, likely the father's name
+                                    candidates.append((cleaned_name, 'single_word_match', j))
+                            else:
+                                candidates.append((cleaned_name, 'label', j))
         
-        # Strategy 2: Find all multi-word uppercase sequences as fallback
+        # Strategy 2: If we have the person's name, try to extract father's name as the last word
+        # This is common in Indian names where father's name becomes the last name
+        if not candidates and person_name:
+            person_words = person_name.split()
+            if len(person_words) >= 2:
+                # The last word is often the father's name in Indian naming convention
+                potential_father_name = person_words[-1]
+                if (len(potential_father_name) >= 3 and 
+                    self._is_valid_name(potential_father_name, allow_single_word=True)):
+                    candidates.append((potential_father_name, 'last_word_extraction', 0))
+        
+        # Strategy 3: Find single-word uppercase sequences as fallback (but avoid person's name)
         if not candidates:
             all_text = ' '.join(cleaned_lines)
-            name_pattern = r'\b([A-Z]{3,}\s+[A-Z]{3,}(?:\s+[A-Z]{3,})?)\b'
-            matches = re.findall(name_pattern, all_text)
+            # Look for single words that could be father's names
+            single_word_pattern = r'\b([A-Z]{4,})\b'  # Single words with 4+ letters
+            matches = re.findall(single_word_pattern, all_text)
             
             for match in matches:
                 cleaned_name = self._clean_name(match)
-                if self._is_valid_name(cleaned_name) and cleaned_name not in [c[0] for c in candidates]:
-                    candidates.append((cleaned_name, 'pattern', 0))
+                if (self._is_valid_name(cleaned_name, allow_single_word=True) and 
+                    cleaned_name != person_name and 
+                    cleaned_name not in [c[0] for c in candidates]):
+                    # Avoid common PAN card words
+                    if not re.search(r'(INCOME|GOVERNMENT|DEPARTMENT|PERMANENT|ACCOUNT|NUMBER|CARD|INDIA)', cleaned_name):
+                        candidates.append((cleaned_name, 'single_word_pattern', 0))
         
-        # Return best candidate (same_line > label > pattern, then by distance)
+        # Return best candidate (single_word_match > same_line > last_word_extraction > label > single_word_pattern)
         if candidates:
-            candidates.sort(key=lambda x: (x[1] != 'same_line', x[1] != 'label', x[2]))
+            candidates.sort(key=lambda x: (
+                x[1] != 'single_word_match',
+                x[1] != 'same_line', 
+                x[1] != 'last_word_extraction',
+                x[1] != 'label',
+                x[2]
+            ))
             return candidates[0][0]
         
         return None

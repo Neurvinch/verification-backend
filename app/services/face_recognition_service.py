@@ -81,7 +81,7 @@ class YOLOFaceService:
                     confidence = float(box.conf[0])
                     
                     # Filter by confidence threshold
-                    if confidence > 0.5:
+                    if confidence > 0.4:
                         # Convert to (x, y, w, h) format
                         x, y = int(x1), int(y1)
                         w, h = int(x2 - x1), int(y2 - y1)
@@ -141,7 +141,7 @@ class YOLOFaceService:
             logger.error(f"Error extracting face encoding: {e}")
             return None
     
-    def compare_face_encodings(self, encoding1: np.ndarray, encoding2: np.ndarray, tolerance: float = 0.6) -> Dict:
+    def compare_face_encodings(self, encoding1: np.ndarray, encoding2: np.ndarray, tolerance: float = 0.4) -> Dict:
         """
         Compare two face encodings and return match result with confidence
         tolerance: Lower = more strict (default 0.6 is balanced)
@@ -165,6 +165,13 @@ class YOLOFaceService:
             # Convert distance to confidence percentage (inverse relationship)
             # Distance 0 = 100% confidence, Distance 1 = 0% confidence
             confidence = float(max(0.0, (1.0 - float(distance)) * 100.0))
+            
+            # DEBUG: Log detailed comparison info
+            logger.info(f"🔍 FACE COMPARISON DEBUG:")
+            logger.info(f"  - face_distance: {distance}")
+            logger.info(f"  - tolerance: {tolerance}")
+            logger.info(f"  - is_match: {is_match} (distance <= tolerance)")
+            logger.info(f"  - confidence: {confidence}%")
 
             # Normalize types to native Python for JSON serialization
             match_py = bool(is_match)
