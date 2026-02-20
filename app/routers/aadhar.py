@@ -79,8 +79,8 @@ async def extract_aadhaar_data(
                 date_of_birth=result.get('dob'),
                 full_name=result.get('name'),
                 gender=result.get('gender'),
-                is_verified=0,  # Not verified yet - will be updated after OTP
-                did=None  # Will be set during OTP verification
+                is_verified=0,  # Not verified yet - pending government verification
+                did=None  # Will be set during verification
             )
             
             logger.info(f"Storing OCR data in database for user: {user_data.full_name}")

@@ -34,13 +34,6 @@ class AadhaarData(BaseModel):
                 return phone_clean
         return v
 
-class OTPRequest(BaseModel):
-    phone: str
-    
-class OTPVerification(BaseModel):
-    phone: str
-    otp: str
-
 class FaceMatchRequest(BaseModel):
     confidence_threshold: Optional[float] = 0.6
 

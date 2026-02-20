@@ -55,5 +55,4 @@ def get_database():
 
 # Collection names
 USERS_COLLECTION = "users"
-OTP_COLLECTION = "otps"
 VERIFICATION_LOGS_COLLECTION = "verification_logs"

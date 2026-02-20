@@ -169,7 +169,7 @@ class VerificationLog(BaseModel):
     )
     
     wallet_address: str
-    verification_type: str  # "aadhaar", "face", "otp"
+    verification_type: str  # "aadhaar", "face", "kyc_complete"
     status: str  # "success", "failed", "pending"
     details: Optional[Dict[str, Any]] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
