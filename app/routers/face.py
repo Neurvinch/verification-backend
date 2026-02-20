@@ -47,7 +47,7 @@ def _sanitize_for_serialization(obj):
 class FaceVerificationRequest(BaseModel):
     aadhaar_photo_base64: str
     live_photo_base64: str
-    phone_number: str  # Added phone number for OTP sending
+    phone_number: str  # Phone number for verification
 
 @router.post("/verify-face", response_model=APIResponse)
 async def verify_face(

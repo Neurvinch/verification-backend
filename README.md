@@ -1,7 +1,7 @@
 # SuiVerify Verification Backend
 
 ## Overview
-SuiVerify is a comprehensive identity verification system built with Python FastAPI that provides secure offline Aadhaar verification with OCR, face recognition, and OTP services. The system is designed for KYC (Know Your Customer) compliance and supports multiple verification workflows.
+SuiVerify is a comprehensive identity verification system built with Python FastAPI that provides secure offline Aadhaar verification with OCR and face recognition. The system is designed for KYC (Know Your Customer) compliance and supports multiple verification workflows.
 
 ## Architecture
 
@@ -12,7 +12,7 @@ SuiVerify is a comprehensive identity verification system built with Python Fast
 - **Cache/Queue**: Redis 5.0.0
 - **Computer Vision**: OpenCV, Tesseract OCR, DeepFace, TensorFlow
 - **Authentication**: JWT tokens with python-jose
-- **Communication**: Twilio for OTP services
+
 
 ### Application Structure
 ```
@@ -32,7 +32,7 @@ verification-backend/
 │   ├── routers/           # API route handlers
 │   │   ├── aadhar.py      # Aadhaar OCR endpoints
 │   │   ├── face.py        # Face recognition endpoints
-│   │   ├── otp.py         # OTP verification endpoints
+
 │   │   ├── user.py        # User management endpoints
 │   │   ├── kyc.py         # Complete KYC workflow
 │   │   ├── encryption.py  # Encryption metadata management
@@ -40,7 +40,7 @@ verification-backend/
 │   └── services/          # Business logic services
 │       ├── ocr_service.py           # Aadhaar OCR processing
 │       ├── face_recognition_service.py # Face matching algorithms
-│       ├── otp_service.py           # OTP generation/verification
+
 │       ├── user_service.py          # User management
 │       ├── encryption_service.py    # Data encryption
 │       ├── redis_service.py         # Redis operations
@@ -98,14 +98,10 @@ Edge cases & notes:
 - **Live Photo Verification**: Compares live selfies with Aadhaar photo
 - **Anti-Spoofing**: Basic liveness detection capabilities
 
-### 3. OTP Verification System
-- **Twilio Integration**: SMS-based OTP delivery
-- **Secure Generation**: Cryptographically secure OTP generation
-- **Expiration Management**: Time-based OTP expiration
-- **Rate Limiting**: Prevents OTP spam and abuse
+
 
 ### 4. Complete KYC Workflow
-- **Multi-Step Process**: Aadhaar → Face Match → OTP → Verification
+- **Multi-Step Process**: Aadhaar → Face Match → Verification
 - **Session Management**: Temporary data storage during verification
 - **Verification Types**: Supports 'above18' and 'citizenship' verification
 - **Audit Trail**: Comprehensive logging of verification attempts
@@ -135,7 +131,7 @@ Edge cases & notes:
 
 ### KYC Workflow (`/api/kyc`)
 - `POST /start-verification` - Start complete KYC process
-- `POST /complete-verification` - Complete KYC with OTP
+- `POST /complete-verification` - Complete KYC verification
 - `GET /verification-status/{session_id}` - Check verification status
 
 ### Aadhaar Processing (`/api/aadhaar`)
@@ -147,10 +143,6 @@ Edge cases & notes:
 - `POST /match` - Compare two face images
 - `POST /verify-with-aadhaar` - Verify face against Aadhaar photo
 
-### OTP Services (`/api/otp`)
-- `POST /send` - Send OTP to phone number
-- `POST /verify` - Verify OTP code
-- `POST /resend` - Resend OTP
 
 ### Encryption (`/api`)
 - `POST /encryption-metadata` - Store encryption metadata
@@ -160,11 +152,6 @@ Edge cases & notes:
 
 ### Required Environment Variables
 ```bash
-# Twilio Configuration (for OTP)
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
-
 # MongoDB Configuration
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/
 DATABASE_NAME=suiverify_db
@@ -187,7 +174,7 @@ REDIS_CONSUMER_NAME=verification_consumer
 - MongoDB instance
 - Redis instance
 - Tesseract OCR installed on system
-- Twilio account for OTP services
+
 
 ### Python Version Compatibility
 - **Python 3.12+**: Use TensorFlow 2.16+ (current requirements.txt)
@@ -262,10 +249,6 @@ python3 main.py
 - Verification status and history
 - Encrypted sensitive data
 
-### OTP Collection
-- OTP codes and expiration times
-- Phone number associations
-- Verification attempts tracking
 
 ### Verification Logs Collection
 - Complete audit trail of verification attempts
@@ -286,7 +269,7 @@ python3 main.py
 - **Error Handling**: Structured error responses
 
 ### External Services
-- **Twilio**: SMS OTP delivery
+
 - **MongoDB**: Primary data storage
 - **Redis**: Caching and message queuing
 - **Kafka**: Optional message streaming (service available)
@@ -296,7 +279,7 @@ python3 main.py
 ### Data Protection
 - Sensitive data encryption at rest
 - Temporary image data cleanup
-- Secure OTP generation and storage
+
 - JWT token-based authentication
 
 ### Privacy Compliance
@@ -331,7 +314,7 @@ python3 main.py
 1. **MongoDB Connection**: Check URI format and network access
 2. **Redis Connection**: Verify Redis server status and credentials
 3. **Tesseract OCR**: Ensure Tesseract is installed and in PATH
-4. **Twilio OTP**: Verify account credentials and phone number format
+
 5. **Face Recognition**: Check TensorFlow/DeepFace model downloads
 
 ### Performance Optimization
