@@ -6,7 +6,6 @@ from .connection import (
     close_mongo_connection,
     get_database,
     USERS_COLLECTION,
-    OTP_COLLECTION,
     VERIFICATION_LOGS_COLLECTION
 )
 
@@ -15,6 +14,5 @@ __all__ = [
     "close_mongo_connection", 
     "get_database",
     "USERS_COLLECTION",
-    "OTP_COLLECTION",
     "VERIFICATION_LOGS_COLLECTION"
 ]

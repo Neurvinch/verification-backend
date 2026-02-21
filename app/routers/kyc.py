@@ -12,7 +12,6 @@ from app.models.user import VerificationLog
 from app.services.user_service import get_user_service, UserService
 from app.services.ocr_service import get_ocr_service, OCRService
 from app.services.face_recognition_service import get_face_recognition_service, HighAccuracyFaceService
-# from app.services.otp_service import get_otp_service, OTPService  # OTP service commented out
 from app.services.redis_service import get_redis_service, RedisService
 
 logger = logging.getLogger(__name__)
@@ -28,9 +27,8 @@ async def start_kyc_verification(
     face_images: List[UploadFile] = File(...),
     ocr_service: OCRService = Depends(get_ocr_service),
     face_service: HighAccuracyFaceService = Depends(get_face_recognition_service)
-    # otp_service: OTPService = Depends(get_otp_service)  # OTP service commented out
 ):
-    """Start KYC verification: Process Aadhaar + Face images (OTP skipped)"""
+    """Start KYC verification: Process Aadhaar + Face images"""
     try:
         # Validate verification type
         if verification_type not in ['above18', 'citizenship']:
@@ -108,8 +106,8 @@ async def start_kyc_verification(
                 detail=f"Face verification failed. Only {successful_matches} out of {len(face_images)} images matched."
             )
         
-        # Step 4: Extract phone number and send OTP
-        phone_number = aadhaar_data.get('phone_number')  # Updated key name
+        # Step 4: Extract phone number
+        phone_number = aadhaar_data.get('phone_number')
         if not phone_number:
             raise HTTPException(
                 status_code=400,
@@ -130,27 +128,14 @@ async def start_kyc_verification(
             'did': 0 if verification_type == 'above18' else 1  # Set DID based on type
         }
         
-        # OTP generation and sending commented out
-        # try:
-        #     otp = otp_service.generate_otp(phone_clean)
-        #     sms_sent = otp_service.send_otp_sms(phone_clean, otp)
-        #     
-        #     logger.info(f"OTP sent to {phone_clean} for session {session_id}")
-        
-        # Skip OTP for now - directly proceed to verification
-        sms_sent = True  # Simulate OTP sent
-        logger.info(f"OTP step skipped for session {session_id}")
-        
         return APIResponse(
             success=True,
-            message="Aadhaar and face verification successful. OTP step skipped.",
+            message="Aadhaar and face verification successful.",
             data={
                 'session_id': session_id,
                 'phone_number': phone_clean,
                 'aadhaar_verified': True,
                 'face_verified': True,
-                'otp_sent': sms_sent,
-                'expires_in_minutes': 5,  # Default value
                 'extracted_data': {
                     'name': aadhaar_data.get('name'),
                     'aadhaar_number': aadhaar_data.get('aadhaar_number', '').replace(' ', ''),
@@ -170,11 +155,9 @@ async def start_kyc_verification(
 @router.post("/complete-verification", response_model=APIResponse)
 async def complete_kyc_verification(
     session_id: str = Form(...),
-    # otp: str = Form(...),  # OTP verification commented out
     user_service: UserService = Depends(get_user_service)
-    # otp_service: OTPService = Depends(get_otp_service)  # OTP service commented out
 ):
-    """Complete KYC verification: Skip OTP and save user data to database"""
+    """Complete KYC verification and save user data to database"""
     try:
         # Step 1: Check if session exists
         if session_id not in temp_verification_data:
@@ -186,15 +169,8 @@ async def complete_kyc_verification(
         verification_data = temp_verification_data[session_id]
         phone_clean = verification_data['phone_number']
         
-        # Step 2: OTP verification commented out - skip directly to user creation
-        # try:
-        #     otp_verified = otp_service.verify_otp(phone_clean, otp)
-        #     if not otp_verified:
-        #         raise HTTPException(status_code=400, detail="Invalid OTP")
-        # except Exception as e:
-        #     raise HTTPException(status_code=400, detail=f"OTP verification failed: {str(e)}")
-        
-        logger.info(f"OTP verification skipped for session {session_id}")
+        # Step 2: Save user data
+        logger.info(f"Proceeding with user creation for session {session_id}")
         
         # Step 3: Generate dummy wallet address and save user data
         dummy_wallet_address = f"0x{uuid.uuid4().hex[:64]}"  # Generate 64-char dummy wallet address
@@ -280,9 +256,7 @@ async def complete_kyc_verification(
         raise HTTPException(status_code=500, detail=f"KYC verification failed: {str(e)}")
 
 
-# Legacy endpoint completely removed - OTP service disabled
-# The legacy-complete-verification endpoint has been removed because it depends on OTP service
-# which is now disabled. Use the new /start-verification and /complete-verification flow instead.
+
 
 
 @router.get("/status/{wallet_address}", response_model=APIResponse)
@@ -451,95 +425,6 @@ async def confirm_and_verify(
         logger.error(f"Error in confirm and verify: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-
-@router.get("/verified-users", response_model=APIResponse)
-async def get_verified_users(
-    user_service: UserService = Depends(get_user_service)
-):
-    """Get all verified users (admin endpoint)"""
-    try:
-        verified_users = await user_service.get_all_verified_users()
-        user_counts = await user_service.get_user_count_by_verification_status()
-        
-        return APIResponse(
-            success=True,
-            message="Verified users retrieved successfully",
-            data={
-                'verified_users': [user.dict() for user in verified_users],
-                'statistics': user_counts,
-                'total_verified': len(verified_users)
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"Error getting verified users: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-async def confirm_and_verify(
-    session_id: str = Form(...),
-    user_wallet: str = Form(...),
-    document_type: str = Form(default="pan", description="Document type: 'pan' (default and only supported)"),
-    redis_service: RedisService = Depends(get_redis_service)
-):
-    """User confirms corrected data and sends for government verification"""
-    try:
-        # Check if session exists
-        if session_id not in temp_verification_data:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid session ID or session expired"
-            )
-        
-        verification_data = temp_verification_data[session_id]
-        aadhaar_data = verification_data['aadhaar_data']
-        user_corrections = verification_data.get('user_corrections', {})
-        did_id = verification_data['did']
-        
-        # Prepare final verification data for PAN verification (use corrections if provided)
-        final_data = {
-            'pan': user_corrections.get('pan', aadhaar_data.get('pan', aadhaar_data.get('aadhaar_number'))),  # Use PAN or fallback
-            'name': user_corrections.get('name', aadhaar_data.get('name')),
-            'date_of_birth': user_corrections.get('date_of_birth', aadhaar_data.get('dob')),
-            'phone_number': user_corrections.get('phone_number', aadhaar_data.get('phone_number'))
-        }
-        
-        # Send PAN verification request to Redis for enclave processing
-        redis_sent = await redis_service.send_verification_request(
-            user_wallet=user_wallet,
-            did_id=did_id,
-            document_type="pan",  # Always PAN for this flow
-            verification_data=final_data,
-            extracted_data=aadhaar_data,
-            user_corrections=user_corrections if user_corrections else None
-        )
-        
-        if redis_sent:
-            logger.info(f"Verification request sent to enclave for wallet: {user_wallet}")
-            
-            # Clean up session data
-            del temp_verification_data[session_id]
-            
-            return APIResponse(
-                success=True,
-                message="Verification request sent to enclave. Please wait for government verification.",
-                data={
-                    'user_wallet': user_wallet,
-                    'status': 'verification_requested',
-                    'document_type': "pan",
-                    'redis_sent': True,
-                    'message': 'Verification in progress via government APIs'
-                }
-            )
-        else:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to send verification request to enclave"
-            )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error in confirm and verify: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/verified-users", response_model=APIResponse)
 async def get_verified_users(

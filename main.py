@@ -1,5 +1,5 @@
-# Aadhaar OCR + Face Match + OTP Verification System - Backend
-# Python FastAPI Backend with OCR, Face Recognition, and OTP Verification
+# SuiVerify - Identity Verification System Backend
+# Python FastAPI Backend with OCR and Face Recognition
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,10 +14,8 @@ import os
 load_dotenv()
 
 from app.routers import aadhar, face, user, kyc, encryption, credentials, pan
-# from app.routers import otp  # OTP service commented out
 from app.services.ocr_service import OCRService
 from app.services.face_recognition_service import get_face_recognition_service
-# from app.services.otp_service import OTPService  # OTP service commented out
 from app.services.user_service import get_user_service
 from app.services.encryption_service import encryption_service
 from app.services.redis_service import get_redis_service
@@ -30,12 +28,11 @@ logger = logging.getLogger(__name__)
 # Global services
 ocr_service = None
 face_recognition_service = None
-# otp_service = None  # OTP service commented out
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
-    global ocr_service, face_recognition_service  # , otp_service  # OTP service commented out
+    global ocr_service, face_recognition_service
     
     logger.info("Starting SuiVerify System with MongoDB integration...")
     
@@ -54,7 +51,6 @@ async def lifespan(app: FastAPI):
     # Initialize services
     ocr_service = OCRService()
     face_recognition_service = get_face_recognition_service()
-    # otp_service = OTPService()  # OTP service commented out
     
     # Test Redis connection
     redis_service = get_redis_service()
@@ -82,8 +78,8 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="Aadhaar OCR + Face Match + OTP Verification System",
-    description="Secure offline Aadhaar verification with OCR, face recognition, and OTP",
+    title="SuiVerify - Identity Verification System",
+    description="Secure offline Aadhaar verification with OCR and face recognition",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -112,7 +108,6 @@ app.include_router(kyc.router, prefix="/api", tags=["KYC Verification"])
 app.include_router(aadhar.router, prefix="/api/aadhaar", tags=["Aadhaar OCR"])
 app.include_router(pan.router, prefix="/api/pan", tags=["PAN Card OCR"])
 app.include_router(face.router, prefix="/api/face", tags=["Face Recognition"])
-# app.include_router(otp.router, prefix="/api/otp", tags=["OTP Verification"])  # OTP service commented out
 app.include_router(encryption.router, prefix="/api", tags=["Encryption Metadata"])
 app.include_router(credentials.router, prefix="/api", tags=["Credentials Management"])
 
@@ -133,7 +128,6 @@ async def root():
             "aadhaar_ocr": "ready",
             "pan_ocr": "ready",
             "face_recognition": "ready", 
-            # "otp": "ready",  # OTP service commented out
             "encryption_metadata": "ready",
             "redis": redis_status
         }
@@ -141,7 +135,7 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Detailed health check"""
-    global ocr_service, face_recognition_service  # , otp_service  # OTP service commented out
+    global ocr_service, face_recognition_service
     
     health_status = {
         "status": "healthy",
@@ -166,15 +160,6 @@ async def health_check():
     except Exception as e:
         health_status["services"]["face"] = f"error: {str(e)}"
     
-    # Check OTP service - COMMENTED OUT
-    # try:
-    #     if otp_service:
-    #         health_status["services"]["otp"] = "healthy"
-    #     else:
-    #         health_status["services"]["otp"] = "not_initialized"
-    # except Exception as e:
-    #     health_status["services"]["otp"] = f"error: {str(e)}"
-    
     # Check Redis
     try:
         redis_service = get_redis_service()
@@ -194,6 +179,7 @@ async def health_check():
         health_status["unhealthy_services"] = unhealthy_services
     
     return health_status
+
 # Dependency to get services
 def get_ocr_service():
     global ocr_service
@@ -206,12 +192,6 @@ def get_face_service():  # FIXED FUNCTION NAME
     if not face_recognition_service:
         raise HTTPException(status_code=503, detail="Face recognition service not available")
     return face_recognition_service
-
-# def get_otp_service_dependency():  # RENAMED TO AVOID CONFLICT - OTP service commented out
-#     global otp_service
-#     if not otp_service:
-#         raise HTTPException(status_code=503, detail="OTP service not available")
-#     return otp_service
 
 if __name__ == "__main__":
     # Check if SSL certificates exist for direct SSL mode
